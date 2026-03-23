@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import Payment from "@/pages/Payment";
 import Profile from "@/pages/Profile";
 import RankPredictor from "@/pages/RankPredictor";
+import Recordings from "@/pages/Recordings";
 import StudentDashboard from "@/pages/StudentDashboard";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -103,6 +104,12 @@ const profileRoute = createRoute({
   component: Profile,
 });
 
+const recordingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/recordings",
+  component: Recordings,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   coursesRoute,
@@ -114,6 +121,7 @@ const routeTree = rootRoute.addChildren([
   chatbotRoute,
   paymentRoute,
   profileRoute,
+  recordingsRoute,
 ]);
 
 const router = createRouter({ routeTree });

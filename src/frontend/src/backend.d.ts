@@ -8,8 +8,36 @@ export interface None {
 }
 export type Option<T> = Some<T> | None;
 export type EnrollmentId = bigint;
+export type Category = {
+    __kind__: "generalStudies";
+    generalStudies: null;
+} | {
+    __kind__: "other";
+    other: string;
+} | {
+    __kind__: "csat";
+    csat: null;
+} | {
+    __kind__: "currentAffairs";
+    currentAffairs: null;
+} | {
+    __kind__: "interviewPrep";
+    interviewPrep: null;
+} | {
+    __kind__: "essayWriting";
+    essayWriting: null;
+} | {
+    __kind__: "optionalSubject";
+    optionalSubject: string;
+};
 export type Time = bigint;
-export type LessonId = bigint;
+export interface NewRecording {
+    title: string;
+    duration: bigint;
+    date: Time;
+    blobId: string;
+    courseTitle: string;
+}
 export interface NewCourse {
     title: string;
     description: string;
@@ -19,6 +47,9 @@ export interface NewCourse {
     price: bigint;
     durationWeeks: bigint;
 }
+export type Principal = Principal;
+export type RecordingId = bigint;
+export type LessonId = bigint;
 export interface Enrollment {
     id: EnrollmentId;
     completedLessonIds: Array<LessonId>;
@@ -69,41 +100,29 @@ export interface Answer {
     answeredBy: string;
 }
 export type DoubtId = bigint;
+export interface Recording {
+    id: RecordingId;
+    title: string;
+    duration: bigint;
+    date: Time;
+    blobId: string;
+    courseTitle: string;
+}
 export interface UserProfile {
     name: string;
     role: string;
     email: string;
 }
-export type Category = {
-    __kind__: "generalStudies";
-    generalStudies: null;
-} | {
-    __kind__: "other";
-    other: string;
-} | {
-    __kind__: "csat";
-    csat: null;
-} | {
-    __kind__: "currentAffairs";
-    currentAffairs: null;
-} | {
-    __kind__: "interviewPrep";
-    interviewPrep: null;
-} | {
-    __kind__: "essayWriting";
-    essayWriting: null;
-} | {
-    __kind__: "optionalSubject";
-    optionalSubject: string;
-};
 export enum UserRole {
     admin = "admin",
     user = "user",
     guest = "guest"
 }
 export interface backendInterface {
+    addRecording(newRecording: NewRecording): Promise<Recording>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     createCourse(newCourse: NewCourse): Promise<Course>;
+    deleteRecording(recordingId: RecordingId): Promise<void>;
     enrollStudentInCourse(courseId: CourseId): Promise<Enrollment>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
@@ -114,6 +133,7 @@ export interface backendInterface {
     getUserTestScores(principal: Principal): Promise<Array<TestScore>>;
     isCallerAdmin(): Promise<boolean>;
     listCourses(): Promise<Array<Course>>;
+    listRecordings(): Promise<Array<Recording>>;
     markLessonComplete(courseId: CourseId, lessonId: LessonId): Promise<void>;
     postDoubt(courseId: CourseId, questionText: string): Promise<Doubt>;
     postDoubtAnswer(doubtId: DoubtId, answerText: string, answeredBy: string): Promise<Doubt>;

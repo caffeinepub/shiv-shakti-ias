@@ -19,10 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAddRecording } from "@/hooks/useQueries";
+import { uploadBlob } from "@/hooks/useUploadBlob";
 import {
   Calendar,
   CheckCircle,
+  Circle,
   Clock,
+  Monitor,
+  MonitorOff,
   Radio,
   Send,
   Users,
@@ -64,21 +69,21 @@ const MOCK_QUESTIONS = [
 const UPCOMING_CLASSES = [
   {
     id: 1,
-    title: "GS1 Polity – Constitutional Amendments",
+    title: "GS1 Polity \u2013 Constitutional Amendments",
     date: "24 Mar 2026",
     time: "10:00 AM",
     students: 142,
   },
   {
     id: 2,
-    title: "Current Affairs – March Week 3",
+    title: "Current Affairs \u2013 March Week 3",
     date: "25 Mar 2026",
     time: "6:00 PM",
     students: 98,
   },
   {
     id: 3,
-    title: "GS2 – International Relations",
+    title: "GS2 \u2013 International Relations",
     date: "26 Mar 2026",
     time: "11:00 AM",
     students: 87,
@@ -92,7 +97,7 @@ const UPCOMING_CLASSES = [
   },
   {
     id: 5,
-    title: "CSAT – Data Interpretation",
+    title: "CSAT \u2013 Data Interpretation",
     date: "28 Mar 2026",
     time: "9:00 AM",
     students: 110,
@@ -100,14 +105,14 @@ const UPCOMING_CLASSES = [
 ];
 
 const COURSES = [
-  "GS1 – History & Polity",
-  "GS2 – Governance & IR",
-  "GS3 – Economy & Environment",
-  "GS4 – Ethics",
+  "GS1 \u2013 History & Polity",
+  "GS2 \u2013 Governance & IR",
+  "GS3 \u2013 Economy & Environment",
+  "GS4 \u2013 Ethics",
   "Current Affairs",
   "CSAT",
   "Essay Writing",
-  "Optional – Sociology",
+  "Optional \u2013 Sociology",
 ];
 
 type Question = (typeof MOCK_QUESTIONS)[0] & {
@@ -118,7 +123,7 @@ type Question = (typeof MOCK_QUESTIONS)[0] & {
 export default function EducatorClassroom() {
   const [isLive, setIsLive] = useState(false);
   const [classTitle, setClassTitle] = useState(
-    "GS1 Polity – Article 356 & President's Rule",
+    "GS1 Polity \u2013 Article 356 & President's Rule",
   );
   const [notes, setNotes] = useState("");
   const [seconds, setSeconds] = useState(0);
@@ -131,19 +136,36 @@ export default function EducatorClassroom() {
     time: "",
   });
   const [upcomingClasses, setUpcomingClasses] = useState(UPCOMING_CLASSES);
+
+  // Screen share state
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const screenPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const addRecording = useAddRecording();
 
   useEffect(() => {
     if (isLive) {
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      setSeconds(0);
+      if (!isSaving) setSeconds(0);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isLive]);
+  }, [isLive, isSaving]);
+
+  // Mirror screen stream to preview video element
+  useEffect(() => {
+    if (screenPreviewRef.current && screenStream) {
+      screenPreviewRef.current.srcObject = screenStream;
+    }
+  }, [screenStream]);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -152,13 +174,118 @@ export default function EducatorClassroom() {
     return [h, m, sec].map((v) => String(v).padStart(2, "0")).join(":");
   };
 
+  const startScreenShare = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true,
+      });
+      setScreenStream(stream);
+
+      // Listen for user stopping via browser UI
+      stream.getVideoTracks()[0].addEventListener("ended", () => {
+        setScreenStream(null);
+        setIsRecording(false);
+        if (mediaRecorderRef.current?.state !== "inactive") {
+          mediaRecorderRef.current?.stop();
+        }
+      });
+
+      toast.success("Screen sharing started!");
+    } catch {
+      toast.error("Screen share cancelled or not supported.");
+    }
+  };
+
+  const stopScreenShare = () => {
+    if (screenStream) {
+      for (const track of screenStream.getTracks()) track.stop();
+      setScreenStream(null);
+    }
+    setIsRecording(false);
+  };
+
+  const startRecorder = (stream: MediaStream) => {
+    recordingChunksRef.current = [];
+    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9"
+      : "video/webm";
+    try {
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch {
+      toast.error("Recording not supported in this browser.");
+    }
+  };
+
+  const startSession = () => {
+    setIsLive(true);
+    if (screenStream) {
+      startRecorder(screenStream);
+    }
+    toast.success("Class started! Students are now joining.");
+  };
+
+  const endSession = async () => {
+    const sessionDurationSeconds = seconds;
+    setIsLive(false);
+    setIsSaving(true);
+    setIsRecording(false);
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+
+      // Wait for final chunk
+      await new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+        setTimeout(resolve, 1500);
+      });
+
+      if (recordingChunksRef.current.length > 0) {
+        try {
+          const blob = new Blob(recordingChunksRef.current, {
+            type: "video/webm",
+          });
+          toast.loading("Saving recording...", { id: "saving-rec" });
+          const blobId = await uploadBlob(blob);
+          await addRecording.mutateAsync({
+            title: classTitle,
+            date: BigInt(Date.now()),
+            duration: BigInt(sessionDurationSeconds),
+            blobId,
+            courseTitle: classTitle,
+          });
+          toast.dismiss("saving-rec");
+          toast.success("Session recorded and saved for students!");
+        } catch {
+          toast.dismiss("saving-rec");
+          toast.error("Failed to save recording. Please try again.");
+        }
+      } else {
+        toast.success("Class ended.");
+      }
+    } else {
+      toast.success("Class ended.");
+    }
+
+    mediaRecorderRef.current = null;
+    recordingChunksRef.current = [];
+    setIsSaving(false);
+    setSeconds(0);
+    stopScreenShare();
+  };
+
   const toggleSession = () => {
     if (isLive) {
-      setIsLive(false);
-      toast.success("Class ended. Session recorded.");
+      endSession();
     } else {
-      setIsLive(true);
-      toast.success("Class started! Students are now joining.");
+      startSession();
     }
   };
 
@@ -190,7 +317,7 @@ export default function EducatorClassroom() {
     setUpcomingClasses((prev) => [
       {
         id: prev.length + 1,
-        title: `${newClass.course} – ${newClass.title}`,
+        title: `${newClass.course} \u2013 ${newClass.title}`,
         date: newClass.date,
         time: newClass.time,
         students: 0,
@@ -208,7 +335,7 @@ export default function EducatorClassroom() {
       <div className="bg-white border-b border-border sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Video className="w-5 h-5 text-primary" />
               </div>
@@ -218,8 +345,10 @@ export default function EducatorClassroom() {
                 </h1>
                 <p className="text-xs text-muted-foreground">
                   {isLive
-                    ? `Session running · ${formatTime(seconds)}`
-                    : "Ready to start your class"}
+                    ? `Session running \u00b7 ${formatTime(seconds)}`
+                    : isSaving
+                      ? "Saving recording..."
+                      : "Ready to start your class"}
                 </p>
               </div>
               <AnimatePresence>
@@ -228,6 +357,7 @@ export default function EducatorClassroom() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center gap-2"
                   >
                     <Badge
                       className="bg-green-500 text-white flex items-center gap-1.5 px-3 py-1"
@@ -236,22 +366,56 @@ export default function EducatorClassroom() {
                       <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                       LIVE
                     </Badge>
+                    {isRecording && (
+                      <Badge
+                        className="bg-red-600 text-white flex items-center gap-1.5 px-3 py-1"
+                        data-ocid="classroom.panel"
+                      >
+                        <Circle className="w-2 h-2 fill-white animate-pulse" />
+                        REC
+                      </Badge>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-            <Button
-              onClick={toggleSession}
-              className={
-                isLive
-                  ? "bg-destructive hover:bg-destructive/90 text-white rounded-full"
-                  : "bg-primary hover:bg-primary/90 text-white rounded-full"
-              }
-              data-ocid="classroom.primary_button"
-            >
-              <Radio className="w-4 h-4 mr-2" />
-              {isLive ? "End Class" : "Start Class"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Screen Share Button */}
+              {!screenStream ? (
+                <Button
+                  onClick={startScreenShare}
+                  variant="outline"
+                  className="border-navy text-navy hover:bg-navy hover:text-white rounded-full"
+                  data-ocid="classroom.secondary_button"
+                >
+                  <Monitor className="w-4 h-4 mr-2" />
+                  Share Screen
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopScreenShare}
+                  variant="outline"
+                  className="border-destructive text-destructive hover:bg-destructive hover:text-white rounded-full"
+                  data-ocid="classroom.secondary_button"
+                >
+                  <MonitorOff className="w-4 h-4 mr-2" />
+                  Stop Sharing
+                </Button>
+              )}
+              <Button
+                onClick={toggleSession}
+                disabled={isSaving}
+                className={
+                  isLive
+                    ? "bg-destructive hover:bg-destructive/90 text-white rounded-full"
+                    : "bg-primary hover:bg-primary/90 text-white rounded-full"
+                }
+                data-ocid="classroom.primary_button"
+              >
+                <Radio className="w-4 h-4 mr-2" />
+                {isSaving ? "Saving..." : isLive ? "End Class" : "Start Class"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -265,6 +429,48 @@ export default function EducatorClassroom() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4 }}
           >
+            {/* Screen Share Preview */}
+            <AnimatePresence>
+              {screenStream && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="shadow-card border-2 border-primary/40 overflow-hidden">
+                    <CardHeader className="pb-2 pt-3 px-4">
+                      <CardTitle className="text-navy text-sm flex items-center gap-2">
+                        <Monitor className="w-4 h-4 text-primary" />
+                        Screen Share Preview
+                        <Badge className="ml-auto bg-primary/10 text-primary border-0 text-xs">
+                          Sharing
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="relative bg-black aspect-video">
+                        {/* biome-ignore lint/a11y/useMediaCaption: live screen share preview, no caption track available */}
+                        <video
+                          ref={screenPreviewRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="w-full h-full object-contain"
+                        />
+                        {isRecording && (
+                          <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-red-600/90 text-white text-xs px-2 py-1 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            Recording
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Class Title */}
             <Card className="shadow-card">
               <CardHeader className="pb-3">
@@ -427,6 +633,27 @@ export default function EducatorClassroom() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
+            {/* Screen Share Tips */}
+            {!screenStream && (
+              <Card className="shadow-card border-dashed border-2 border-primary/30 bg-primary/5">
+                <CardContent className="p-5">
+                  <div className="flex gap-3 items-start">
+                    <Monitor className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-navy">
+                        Share Your Presentation
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Click "Share Screen" to present your PowerPoint slides.
+                        The session will be recorded automatically when you
+                        start the class.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Upcoming Classes */}
             <Card className="shadow-card">
               <CardHeader className="pb-3">
@@ -555,7 +782,7 @@ export default function EducatorClassroom() {
                         {cls.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {cls.date} · {cls.time}
+                        {cls.date} \u00b7 {cls.time}
                       </p>
                       {cls.students > 0 && (
                         <p className="text-xs text-primary mt-0.5">
@@ -588,6 +815,16 @@ export default function EducatorClassroom() {
                     </p>
                     <p className="text-xs opacity-70 mt-1">Q&A Resolved</p>
                   </div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-3 text-center">
+                  <p className="text-sm font-semibold">
+                    {screenStream ? (
+                      <span className="text-green-300">✓ Screen Shared</span>
+                    ) : (
+                      <span className="opacity-60">No Screen Share</span>
+                    )}
+                  </p>
+                  <p className="text-xs opacity-70 mt-1">Presentation</p>
                 </div>
               </CardContent>
             </Card>

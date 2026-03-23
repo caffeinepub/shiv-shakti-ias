@@ -72,6 +72,23 @@ export interface NewLesson {
   'content' : string,
   'order' : bigint,
 }
+export interface NewRecording {
+  'title' : string,
+  'duration' : bigint,
+  'date' : Time,
+  'blobId' : string,
+  'courseTitle' : string,
+}
+export type Principal = Principal;
+export interface Recording {
+  'id' : RecordingId,
+  'title' : string,
+  'duration' : bigint,
+  'date' : Time,
+  'blobId' : string,
+  'courseTitle' : string,
+}
+export type RecordingId = bigint;
 export interface TestScore {
   'marks' : bigint,
   'totalMarks' : bigint,
@@ -87,10 +104,38 @@ export interface UserProfile {
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
 export interface _SERVICE {
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
+    undefined
+  >,
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
+  >,
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
+  >,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addRecording' : ActorMethod<[NewRecording], Recording>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'createCourse' : ActorMethod<[NewCourse], Course>,
+  'deleteRecording' : ActorMethod<[RecordingId], undefined>,
   'enrollStudentInCourse' : ActorMethod<[CourseId], Enrollment>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
@@ -101,6 +146,7 @@ export interface _SERVICE {
   'getUserTestScores' : ActorMethod<[Principal], Array<TestScore>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'listCourses' : ActorMethod<[], Array<Course>>,
+  'listRecordings' : ActorMethod<[], Array<Recording>>,
   'markLessonComplete' : ActorMethod<[CourseId, LessonId], undefined>,
   'postDoubt' : ActorMethod<[CourseId, string], Doubt>,
   'postDoubtAnswer' : ActorMethod<[DoubtId, string, string], Doubt>,

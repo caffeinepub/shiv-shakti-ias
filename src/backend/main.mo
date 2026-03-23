@@ -1,18 +1,22 @@
+import Array "mo:core/Array";
 import Iter "mo:core/Iter";
 import List "mo:core/List";
 import Map "mo:core/Map";
+import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import MixinStorage "blob-storage/Mixin";
 
 actor {
   type CourseId = Nat;
   type LessonId = Nat;
   type DoubtId = Nat;
   type EnrollmentId = Nat;
+  type RecordingId = Nat;
 
   module Course {
     public type Category = {
@@ -47,7 +51,7 @@ actor {
 
   type Enrollment = {
     id : EnrollmentId;
-    student : Principal;
+    student : Principal.Principal;
     courseId : CourseId;
     enrollmentDate : Time.Time;
     completedLessonIds : [LessonId];
@@ -65,7 +69,7 @@ actor {
     id : DoubtId;
     course : CourseId;
     questionText : Text;
-    student : Principal;
+    student : Principal.Principal;
     postedAt : Time.Time;
     answer : ?Doubt.Answer;
   };
@@ -99,15 +103,34 @@ actor {
     completionPercentage : Nat;
   };
 
+  type Recording = {
+    id : RecordingId;
+    title : Text;
+    date : Time.Time;
+    duration : Nat;
+    blobId : Text;
+    courseTitle : Text;
+  };
+
+  type NewRecording = {
+    title : Text;
+    date : Time.Time;
+    duration : Nat;
+    blobId : Text;
+    courseTitle : Text;
+  };
+
   var nextCourseId = 1;
   var nextLessonId = 1;
   var nextDoubtId = 1;
   var nextEnrollmentId = 1;
+  var nextRecordingId = 1;
 
   let courses = Map.empty<CourseId, Course>();
-  let enrollments = Map.empty<Principal, List.List<Enrollment>>();
+  let enrollments = Map.empty<Principal.Principal, List.List<Enrollment>>();
   let doubts = Map.empty<DoubtId, Doubt>();
-  let testScores = Map.empty<Principal, List.List<TestScore>>();
+  let testScores = Map.empty<Principal.Principal, List.List<TestScore>>();
+  let recordings = Map.empty<RecordingId, Recording>();
 
   // Reusable functions
 
@@ -141,7 +164,7 @@ actor {
     role : Text;
   };
 
-  let userProfiles = Map.empty<Principal, UserProfile>();
+  let userProfiles = Map.empty<Principal.Principal, UserProfile>();
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -150,7 +173,7 @@ actor {
     userProfiles.get(caller);
   };
 
-  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+  public query ({ caller }) func getUserProfile(user : Principal.Principal) : async ?UserProfile {
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
@@ -164,8 +187,8 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  func serveCourse(course : Course, caller : Principal) : Course {
-    func serveLesson(lesson : Lesson, caller : Principal) : Lesson {
+  func serveCourse(course : Course, caller : Principal.Principal) : Course {
+    func serveLesson(lesson : Lesson, caller : Principal.Principal) : Lesson {
       lesson;
     };
     {
@@ -174,7 +197,7 @@ actor {
     };
   };
 
-  func serveCourses(courses : [Course], caller : Principal) : [Course] {
+  func serveCourses(courses : [Course], caller : Principal.Principal) : [Course] {
     courses.map(
       func(course) {
         serveCourse(course, caller);
@@ -182,8 +205,8 @@ actor {
     );
   };
 
-  func serveCourseWithInternalAuthentication(course : Course, caller : Principal) : Course {
-    func serveLesson(lesson : Lesson, caller : Principal) : Lesson {
+  func serveCourseWithInternalAuthentication(course : Course, caller : Principal.Principal) : Course {
+    func serveLesson(lesson : Lesson, caller : Principal.Principal) : Lesson {
       lesson;
     };
     {
@@ -267,11 +290,11 @@ actor {
     };
   };
 
-  public query ({ caller }) func getStudentEnrollmentsList(principal : Principal) : async [Enrollment] {
+  public query ({ caller }) func getStudentEnrollmentsList(principal : Principal.Principal) : async [Enrollment] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view enrollments");
     };
-    func serveEnrollment(enrollment : Enrollment, caller : Principal) : Enrollment {
+    func serveEnrollment(enrollment : Enrollment, caller : Principal.Principal) : Enrollment {
       let isAuthorized = caller == enrollment.student or AccessControl.hasPermission(accessControlState, caller, #admin);
       if (not isAuthorized) { Runtime.trap("Unauthorized: Can only view your own enrollments") };
       enrollment;
@@ -336,11 +359,11 @@ actor {
     score;
   };
 
-  public query ({ caller }) func getUserTestScores(principal : Principal) : async [TestScore] {
+  public query ({ caller }) func getUserTestScores(principal : Principal.Principal) : async [TestScore] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can view test scores");
     };
-    func serveTestScore(testScore : TestScore, caller : Principal) : TestScore {
+    func serveTestScore(testScore : TestScore, caller : Principal.Principal) : TestScore {
       let isAuthorized = caller == principal or AccessControl.hasPermission(accessControlState, caller, #admin);
       if (not isAuthorized) { Runtime.trap("Unauthorized: Can only view your own test scores") };
       testScore;
@@ -379,8 +402,8 @@ actor {
   };
 
   public shared ({ caller }) func postDoubtAnswer(doubtId : DoubtId, answerText : Text, answeredBy : Text) : async Doubt {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can answer doubts");
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can answer doubts");
     };
     switch (doubts.get(doubtId)) {
       case (null) { Runtime.trap("Doubt not found") };
@@ -399,4 +422,46 @@ actor {
       };
     };
   };
+
+  // Recordings
+
+  public shared ({ caller }) func addRecording(newRecording : NewRecording) : async Recording {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add recordings");
+    };
+    let recording : Recording = {
+      id = nextRecordingId;
+      title = newRecording.title;
+      date = newRecording.date;
+      duration = newRecording.duration;
+      blobId = newRecording.blobId;
+      courseTitle = newRecording.courseTitle;
+    };
+    recordings.add(nextRecordingId, recording);
+    nextRecordingId += 1;
+    recording;
+  };
+
+  public query ({ caller }) func listRecordings() : async [Recording] {
+    let recordingEntries = recordings.entries().toArray();
+    recordingEntries.sort(
+      func(a, b) {
+        Nat.compare(b.1.id, a.1.id);
+      }
+    ).map(
+      func((_, recording)) { recording }
+    );
+  };
+
+  public shared ({ caller }) func deleteRecording(recordingId : RecordingId) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete recordings");
+    };
+    if (not recordings.containsKey(recordingId)) {
+      Runtime.trap("Recording not found");
+    };
+    recordings.remove(recordingId);
+  };
+
+  include MixinStorage();
 };

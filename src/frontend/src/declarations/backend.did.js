@@ -8,6 +8,34 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const Time = IDL.Int;
+export const NewRecording = IDL.Record({
+  'title' : IDL.Text,
+  'duration' : IDL.Nat,
+  'date' : Time,
+  'blobId' : IDL.Text,
+  'courseTitle' : IDL.Text,
+});
+export const RecordingId = IDL.Nat;
+export const Recording = IDL.Record({
+  'id' : RecordingId,
+  'title' : IDL.Text,
+  'duration' : IDL.Nat,
+  'date' : Time,
+  'blobId' : IDL.Text,
+  'courseTitle' : IDL.Text,
+});
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
@@ -56,11 +84,11 @@ export const Course = IDL.Record({
   'durationWeeks' : IDL.Nat,
 });
 export const EnrollmentId = IDL.Nat;
-export const Time = IDL.Int;
+export const Principal = IDL.Principal;
 export const Enrollment = IDL.Record({
   'id' : EnrollmentId,
   'completedLessonIds' : IDL.Vec(LessonId),
-  'student' : IDL.Principal,
+  'student' : Principal,
   'enrollmentDate' : Time,
   'courseId' : CourseId,
 });
@@ -80,7 +108,7 @@ export const Doubt = IDL.Record({
   'postedAt' : Time,
   'answer' : IDL.Opt(Answer),
   'questionText' : IDL.Text,
-  'student' : IDL.Principal,
+  'student' : Principal,
   'course' : CourseId,
 });
 export const TestScore = IDL.Record({
@@ -91,31 +119,52 @@ export const TestScore = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [],
+      [],
+    ),
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
+      [],
+    ),
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
+      [],
+    ),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addRecording' : IDL.Func([NewRecording], [Recording], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'createCourse' : IDL.Func([NewCourse], [Course], []),
+  'deleteRecording' : IDL.Func([RecordingId], [], []),
   'enrollStudentInCourse' : IDL.Func([CourseId], [Enrollment], []),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCourseById' : IDL.Func([CourseId], [Course], ['query']),
   'getCourseDoubtsList' : IDL.Func([CourseId], [IDL.Vec(Doubt)], ['query']),
   'getStudentEnrollmentsList' : IDL.Func(
-      [IDL.Principal],
+      [Principal],
       [IDL.Vec(Enrollment)],
       ['query'],
     ),
-  'getUserProfile' : IDL.Func(
-      [IDL.Principal],
-      [IDL.Opt(UserProfile)],
-      ['query'],
-    ),
-  'getUserTestScores' : IDL.Func(
-      [IDL.Principal],
-      [IDL.Vec(TestScore)],
-      ['query'],
-    ),
+  'getUserProfile' : IDL.Func([Principal], [IDL.Opt(UserProfile)], ['query']),
+  'getUserTestScores' : IDL.Func([Principal], [IDL.Vec(TestScore)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'listCourses' : IDL.Func([], [IDL.Vec(Course)], ['query']),
+  'listRecordings' : IDL.Func([], [IDL.Vec(Recording)], ['query']),
   'markLessonComplete' : IDL.Func([CourseId, LessonId], [], []),
   'postDoubt' : IDL.Func([CourseId, IDL.Text], [Doubt], []),
   'postDoubtAnswer' : IDL.Func([DoubtId, IDL.Text, IDL.Text], [Doubt], []),
@@ -126,6 +175,34 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const Time = IDL.Int;
+  const NewRecording = IDL.Record({
+    'title' : IDL.Text,
+    'duration' : IDL.Nat,
+    'date' : Time,
+    'blobId' : IDL.Text,
+    'courseTitle' : IDL.Text,
+  });
+  const RecordingId = IDL.Nat;
+  const Recording = IDL.Record({
+    'id' : RecordingId,
+    'title' : IDL.Text,
+    'duration' : IDL.Nat,
+    'date' : Time,
+    'blobId' : IDL.Text,
+    'courseTitle' : IDL.Text,
+  });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
@@ -174,11 +251,11 @@ export const idlFactory = ({ IDL }) => {
     'durationWeeks' : IDL.Nat,
   });
   const EnrollmentId = IDL.Nat;
-  const Time = IDL.Int;
+  const Principal = IDL.Principal;
   const Enrollment = IDL.Record({
     'id' : EnrollmentId,
     'completedLessonIds' : IDL.Vec(LessonId),
-    'student' : IDL.Principal,
+    'student' : Principal,
     'enrollmentDate' : Time,
     'courseId' : CourseId,
   });
@@ -198,7 +275,7 @@ export const idlFactory = ({ IDL }) => {
     'postedAt' : Time,
     'answer' : IDL.Opt(Answer),
     'questionText' : IDL.Text,
-    'student' : IDL.Principal,
+    'student' : Principal,
     'course' : CourseId,
   });
   const TestScore = IDL.Record({
@@ -209,31 +286,56 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [],
+        [],
+      ),
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
+        [],
+      ),
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
+        [],
+      ),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addRecording' : IDL.Func([NewRecording], [Recording], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'createCourse' : IDL.Func([NewCourse], [Course], []),
+    'deleteRecording' : IDL.Func([RecordingId], [], []),
     'enrollStudentInCourse' : IDL.Func([CourseId], [Enrollment], []),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCourseById' : IDL.Func([CourseId], [Course], ['query']),
     'getCourseDoubtsList' : IDL.Func([CourseId], [IDL.Vec(Doubt)], ['query']),
     'getStudentEnrollmentsList' : IDL.Func(
-        [IDL.Principal],
+        [Principal],
         [IDL.Vec(Enrollment)],
         ['query'],
       ),
-    'getUserProfile' : IDL.Func(
-        [IDL.Principal],
-        [IDL.Opt(UserProfile)],
-        ['query'],
-      ),
+    'getUserProfile' : IDL.Func([Principal], [IDL.Opt(UserProfile)], ['query']),
     'getUserTestScores' : IDL.Func(
-        [IDL.Principal],
+        [Principal],
         [IDL.Vec(TestScore)],
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'listCourses' : IDL.Func([], [IDL.Vec(Course)], ['query']),
+    'listRecordings' : IDL.Func([], [IDL.Vec(Recording)], ['query']),
     'markLessonComplete' : IDL.Func([CourseId, LessonId], [], []),
     'postDoubt' : IDL.Func([CourseId, IDL.Text], [Doubt], []),
     'postDoubtAnswer' : IDL.Func([DoubtId, IDL.Text, IDL.Text], [Doubt], []),

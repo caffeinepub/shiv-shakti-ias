@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Course, NewCourse, TestScore, UserProfile } from "../backend.d";
+import type {
+  Course,
+  NewCourse,
+  NewRecording,
+  Recording,
+  TestScore,
+  UserProfile,
+} from "../backend.d";
 import { useActor } from "./useActor";
 import { useInternetIdentity } from "./useInternetIdentity";
 
@@ -161,5 +168,29 @@ export function useIsAdmin() {
       return actor.isCallerAdmin();
     },
     enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useListRecordings() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Recording[]>({
+    queryKey: ["recordings"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listRecordings();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddRecording() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (recording: NewRecording) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addRecording(recording);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recordings"] }),
   });
 }

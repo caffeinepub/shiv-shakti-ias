@@ -8,6 +8,7 @@ import {
   Flame,
   LayoutDashboard,
   Menu,
+  PlayCircle,
   User,
   Video,
   X,
@@ -81,6 +82,17 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          <Link
+            to="/recordings"
+            className="px-3 py-2 rounded-md text-sm font-medium text-foreground hover:text-primary hover:bg-accent transition-colors flex items-center gap-1"
+            activeProps={{
+              className:
+                "px-3 py-2 rounded-md text-sm font-medium text-primary bg-accent flex items-center gap-1",
+            }}
+            data-ocid="nav.link"
+          >
+            <PlayCircle className="w-4 h-4" /> Recordings
+          </Link>
           {isAuthenticated && (
             <>
               <Link
@@ -181,6 +193,14 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          <Link
+            to="/recordings"
+            className="block px-3 py-2 rounded-md text-sm font-medium text-foreground hover:text-primary hover:bg-accent flex items-center gap-1"
+            onClick={() => setMobileOpen(false)}
+            data-ocid="nav.link"
+          >
+            <PlayCircle className="w-4 h-4" /> Recordings
+          </Link>
           {isAuthenticated && (
             <>
               <Link
