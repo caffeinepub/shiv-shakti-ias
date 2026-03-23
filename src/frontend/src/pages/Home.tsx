@@ -11,7 +11,9 @@ import {
   CheckCircle,
   FileText,
   GraduationCap,
+  LayoutDashboard,
   Users,
+  Video,
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -35,6 +37,25 @@ const FEATURES = [
     icon: Users,
     title: "Personal Mentoring",
     desc: "One-on-one mentoring sessions with toppers and educators",
+  },
+];
+
+const EDUCATOR_CARDS = [
+  {
+    icon: LayoutDashboard,
+    title: "Educator Panel",
+    desc: "Manage your courses, track student progress, and grow your teaching profile",
+    cta: "Go to Educator Panel",
+    to: "/educator",
+    ocid: "educator.panel_button",
+  },
+  {
+    icon: Video,
+    title: "Educator Classroom",
+    desc: "Start live sessions, use the whiteboard, answer student questions in real time",
+    cta: "Open Classroom",
+    to: "/educator/classroom",
+    ocid: "educator.classroom_button",
   },
 ];
 
@@ -224,6 +245,72 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {feature.desc}
                       </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* For Educators */}
+      <section className="py-16" data-ocid="home.section">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.55 }}
+          >
+            <div className="text-center mb-10">
+              <span className="inline-block bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 rounded-full mb-3 tracking-wide uppercase">
+                For Educators
+              </span>
+              <h2 className="text-3xl font-bold text-navy mb-2">
+                Are You an Educator?
+              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                Join our platform to teach, take live classes, and manage your
+                courses
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {EDUCATOR_CARDS.map((card, i) => (
+                <motion.div
+                  key={card.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.15 }}
+                >
+                  <Card
+                    className="group relative overflow-hidden border border-border hover:border-primary/40 hover:shadow-lg transition-all duration-300 h-full"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.22 0.058 245) 0%, oklch(0.28 0.07 245) 100%)",
+                    }}
+                  >
+                    <CardContent className="p-8 flex flex-col items-start gap-4 h-full">
+                      <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+                        <card.icon className="w-7 h-7 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white mb-2">
+                          {card.title}
+                        </h3>
+                        <p className="text-white/70 text-sm leading-relaxed">
+                          {card.desc}
+                        </p>
+                      </div>
+                      <Link to={card.to} className="w-full">
+                        <Button
+                          className="w-full bg-primary hover:bg-primary/90 text-white font-semibold rounded-full"
+                          data-ocid={card.ocid}
+                        >
+                          {card.cta} <ArrowRight className="ml-2 w-4 h-4" />
+                        </Button>
+                      </Link>
                     </CardContent>
                   </Card>
                 </motion.div>

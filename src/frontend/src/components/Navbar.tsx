@@ -3,7 +3,15 @@ import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import { useGetCallerProfile, useIsAdmin } from "@/hooks/useQueries";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Flame, LayoutDashboard, Menu, User, X } from "lucide-react";
+import {
+  BookOpen,
+  Flame,
+  LayoutDashboard,
+  Menu,
+  User,
+  Video,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 const NAV_LINKS = [
@@ -83,13 +91,22 @@ export default function Navbar() {
                 <LayoutDashboard className="w-4 h-4" /> Dashboard
               </Link>
               {isAdmin && (
-                <Link
-                  to="/educator"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-foreground hover:text-primary hover:bg-accent transition-colors flex items-center gap-1"
-                  data-ocid="nav.link"
-                >
-                  <BookOpen className="w-4 h-4" /> Educator Panel
-                </Link>
+                <>
+                  <Link
+                    to="/educator"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-foreground hover:text-primary hover:bg-accent transition-colors flex items-center gap-1"
+                    data-ocid="nav.link"
+                  >
+                    <BookOpen className="w-4 h-4" /> Educator Panel
+                  </Link>
+                  <Link
+                    to="/educator/classroom"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-foreground hover:text-primary hover:bg-accent transition-colors flex items-center gap-1"
+                    data-ocid="nav.link"
+                  >
+                    <Video className="w-4 h-4" /> Classroom
+                  </Link>
+                </>
               )}
             </>
           )}
@@ -165,14 +182,36 @@ export default function Navbar() {
             </Link>
           ))}
           {isAuthenticated && (
-            <Link
-              to="/dashboard"
-              className="block px-3 py-2 rounded-md text-sm font-medium"
-              onClick={() => setMobileOpen(false)}
-              data-ocid="nav.link"
-            >
-              Dashboard
-            </Link>
+            <>
+              <Link
+                to="/dashboard"
+                className="block px-3 py-2 rounded-md text-sm font-medium"
+                onClick={() => setMobileOpen(false)}
+                data-ocid="nav.link"
+              >
+                Dashboard
+              </Link>
+              {isAdmin && (
+                <>
+                  <Link
+                    to="/educator"
+                    className="block px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1"
+                    onClick={() => setMobileOpen(false)}
+                    data-ocid="nav.link"
+                  >
+                    <BookOpen className="w-4 h-4" /> Educator Panel
+                  </Link>
+                  <Link
+                    to="/educator/classroom"
+                    className="block px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1"
+                    onClick={() => setMobileOpen(false)}
+                    data-ocid="nav.link"
+                  >
+                    <Video className="w-4 h-4" /> Classroom
+                  </Link>
+                </>
+              )}
+            </>
           )}
         </div>
       )}
